@@ -1,0 +1,105 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+
+class UserController extends Controller
+{
+    // استعراض كل المستخدمين مع العلاقات
+    public function index()
+    {
+        $users = User::with([
+            'normalUser',
+            'realEstate.officeDetail',
+            'realEstate.individualDetail',
+            'restaurantDetail',
+            'carRental.officeDetail',
+            'carRental.driverDetail'
+        ])->get();
+
+        return response()->json([
+            'status' => true,
+            'users' => $users
+        ]);
+    }
+
+    // إضافة مستخدم جديد (Admin Only)
+    public function store(Request $request)
+    {
+        if (auth()->user()->user_type !== 'admin') {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|string|min:6',
+            'phone' => 'required|string|max:20|unique:users,phone',
+            'governorate' => 'nullable|string|max:255',
+            'user_type' => 'required|string',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'phone' => $validated['phone'],
+            'governorate' => $validated['governorate'] ?? null,
+            'user_type' => $validated['user_type'],
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم إضافة المستخدم بنجاح',
+            'user' => $user,
+        ], 201);
+    }
+
+    // تعديل بيانات مستخدم (Admin Only)
+    public function update(Request $request, $id)
+    {
+        // if (auth()->user()->user_type !== 'admin') {
+        //     return response()->json(['status' => false, 'message' => 'غير مصرح لك'], 403);
+        // }
+
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
+            'phone' => 'sometimes|required|string|max:20|unique:users,phone,' . $user->id,
+            'governorate' => 'nullable|string|max:255',
+            'user_type' => 'sometimes|required|string',
+            'is_approved' => 'sometimes|in:0,1',
+            'the_best' => 'sometimes|in:0,1',
+
+        ]);
+
+        $user->update($validated);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم تحديث بيانات المستخدم بنجاح',
+            'user' => $user,
+        ]);
+    }
+
+    // حذف مستخدم (Admin Only)
+    public function destroy($id)
+    {
+        if (auth()->user()->user_type !== 'admin') {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك'], 403);
+        }
+
+        $user = User::findOrFail($id);
+        $user->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم حذف المستخدم بنجاح',
+        ]);
+    }
+}
