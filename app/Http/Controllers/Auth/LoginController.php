@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Support\Notifier;
 
 class LoginController extends Controller
 {
@@ -84,6 +85,16 @@ class LoginController extends Controller
                     $extraData['car_rental'] = $carRental;
                 }
                 break;
+        }
+
+        // إرسال إشعار تلقائي للمستخدمين غير المعتمدين
+        if (!$user->is_approved) {
+            Notifier::send(
+                $user,
+                'account_pending_approval',
+                'حسابك في انتظار الموافقة',
+                'مرحباً بك! حسابك تم إنشاؤه بنجاح وهو الآن في انتظار موافقة الإدارة. سيتم إشعارك فور الموافقة على حسابك وتفعيل جميع الخدمات.'
+            );
         }
 
         return response()->json([
