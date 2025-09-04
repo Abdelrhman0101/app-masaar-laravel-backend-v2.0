@@ -52,6 +52,9 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/upload', [UploadController::class, 'upload']);
 Route::get('/settings', [AppSettingController::class, 'index']);
 
+// Google OAuth Routes
+Route::post('/auth/google/mobile', [\App\Http\Controllers\Auth\SocialLoginController::class, 'handleGoogleMobileLogin']);
+
 // OTP Routes
 Route::prefix('otp')->middleware('otp.rate.limit')->group(function () {
     // Email Verification OTP
