@@ -32,7 +32,7 @@ class FcmHttpV1Service
             'message' => array_filter([
                 'token'        => $token,
                 'notification' => $notification ?: null,
-                'data'         => $data ? array_map('strval', a) : null,
+                'data'         => $data ? array_map('strval', $data) : null,
                 'android'      => [
                     'priority'     => 'HIGH',
                     'notification' => [

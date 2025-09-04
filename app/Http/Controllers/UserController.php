@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Support\Notifier;
 
 class UserController extends Controller
 {
@@ -66,6 +67,7 @@ class UserController extends Controller
         // }
 
         $user = User::findOrFail($id);
+        $wasApproved = $user->is_approved; // حفظ الحالة السابقة
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
@@ -79,6 +81,16 @@ class UserController extends Controller
         ]);
 
         $user->update($validated);
+
+        // إرسال إشعار عند قبول الحساب لأول مرة
+        if (isset($validated['is_approved']) && $validated['is_approved'] == 1 && !$wasApproved) {
+            Notifier::send(
+                $user,
+                'account_approved',
+                'تم قبول حسابك',
+                'مبروك! تم قبول حسابك من قبل الإدارة. يمكنك الآن الاستفادة من جميع خدمات التطبيق.'
+            );
+        }
 
         return response()->json([
             'status' => true,
