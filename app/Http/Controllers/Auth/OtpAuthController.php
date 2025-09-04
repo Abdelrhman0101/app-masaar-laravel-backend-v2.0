@@ -109,6 +109,84 @@ class OtpAuthController extends Controller
      */
     public function verifyEmailVerificationOtp(Request $request): JsonResponse
     {
+        Log::info('DEBUG OtpController: verifyEmailVerificationOtp called', [
+            'request_data' => $request->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+        
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+            'verification_code' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'البيانات المدخلة غير صحيحة.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Rate limiting for verification attempts
+        $key = 'verify-email-otp:' . $request->ip() . ':' . $request->email;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            return response()->json([
+                'success' => false,
+                'message' => 'تم تجاوز الحد المسموح من المحاولات. يرجى المحاولة مرة أخرى بعد ' . ceil($seconds / 60) . ' دقائق.',
+                'retry_after' => $seconds
+            ], 429);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        Log::info('DEBUG OtpController: User found', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'verification_code_input' => $request->verification_code
+        ]);
+        
+        $result = $this->otpService->verifyEmailVerificationOtp($user, $request->verification_code);
+        
+        Log::info('DEBUG OtpController: OtpService result', [
+            'user_id' => $user->id,
+            'result' => $result
+        ]);
+
+        if (!$result['success']) {
+            RateLimiter::hit($key, 300); // 5 minutes
+            return response()->json($result, 400);
+        }
+
+        RateLimiter::clear($key);
+
+        return response()->json([
+            'success' => true,
+            'message' => $result['message'],
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_email_verified' => $user->is_email_verified,
+                'account_active' => $user->account_active
+            ]
+        ]);
+    }
+
+    /**
+     * Verify email OTP (alias for verifyEmailVerificationOtp with different parameter name)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verifyEmailOtp(Request $request): JsonResponse
+    {
+        Log::info('DEBUG OtpController: verifyEmailOtp called', [
+            'request_data' => $request->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+        
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|exists:users,email',
             'otp' => 'required|string|size:6',
@@ -134,7 +212,18 @@ class OtpAuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+        Log::info('DEBUG OtpController: User found', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'otp_input' => $request->otp
+        ]);
+        
         $result = $this->otpService->verifyEmailVerificationOtp($user, $request->otp);
+        
+        Log::info('DEBUG OtpController: OtpService result', [
+            'user_id' => $user->id,
+            'result' => $result
+        ]);
 
         if (!$result['success']) {
             RateLimiter::hit($key, 300); // 5 minutes

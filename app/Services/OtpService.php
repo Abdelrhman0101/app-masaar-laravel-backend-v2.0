@@ -126,8 +126,18 @@ class OtpService
      */
     public function verifyEmailVerificationOtp(User $user, string $otp): array
     {
+        Log::info('DEBUG OtpService: verifyEmailVerificationOtp called', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'input_otp' => $otp,
+            'stored_otp_exists' => !empty($user->email_verification_code),
+            'expires_at' => $user->email_verification_expires_at,
+            'attempts' => $user->email_verification_attempts
+        ]);
+        
         // Check if OTP exists
         if (!$user->email_verification_code) {
+            Log::warning('DEBUG OtpService: No verification code found for user', ['user_id' => $user->id]);
             return [
                 'success' => false,
                 'message' => 'No verification code found. Please request a new one.'
@@ -136,6 +146,11 @@ class OtpService
         
         // Check if OTP has expired
         if (Carbon::now()->isAfter($user->email_verification_expires_at)) {
+            Log::warning('DEBUG OtpService: OTP expired', [
+                'user_id' => $user->id,
+                'expires_at' => $user->email_verification_expires_at,
+                'current_time' => Carbon::now()
+            ]);
             $this->clearEmailVerificationOtp($user);
             return [
                 'success' => false,
@@ -153,12 +168,21 @@ class OtpService
         }
         
         // Verify OTP
-        if (!Hash::check($otp, $user->email_verification_code)) {
+        $hashCheck = Hash::check($otp, $user->email_verification_code);
+        Log::info('DEBUG OtpService: Hash check result', [
+            'user_id' => $user->id,
+            'input_otp' => $otp,
+            'hash_check_result' => $hashCheck,
+            'stored_hash' => $user->email_verification_code
+        ]);
+        
+        if (!$hashCheck) {
             $user->increment('email_verification_attempts');
             
             Log::warning('Invalid email verification OTP attempt', [
                 'user_id' => $user->id,
                 'email' => $user->email,
+                'input_otp' => $otp,
                 'attempts' => $user->email_verification_attempts + 1
             ]);
             
