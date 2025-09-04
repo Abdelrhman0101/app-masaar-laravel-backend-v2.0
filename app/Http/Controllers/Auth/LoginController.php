@@ -35,6 +35,19 @@ class LoginController extends Controller
             return back()->withErrors(['email' => 'بيانات الدخول غير صحيحة.'])->withInput();
         }
 
+        // Check if account is active (email verified)
+        if (!$user->account_active || !$user->is_email_verified) {
+            if ($isApiRequest) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'الحساب غير مفعل. يرجى تأكيد بريدك الإلكتروني أولاً.',
+                    'email_verification_required' => true,
+                    'user_id' => $user->id
+                ], 403);
+            }
+            return back()->withErrors(['email' => 'الحساب غير مفعل. يرجى تأكيد بريدك الإلكتروني أولاً.'])->withInput();
+        }
+
         if (!$isApiRequest && $user->user_type !== 'admin') {
             return back()->withErrors(['email' => 'غير مسموح لك بالوصول إلى لوحة التحكم.'])->withInput();
         }

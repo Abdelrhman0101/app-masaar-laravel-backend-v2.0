@@ -4,12 +4,23 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\OtpService;
+use App\Notifications\EmailVerificationOtp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class RegisteredUserController extends Controller
 {
+    protected $otpService;
+
+    public function __construct(OtpService $otpService)
+    {
+        $this->otpService = $otpService;
+    }
+
     public function store(Request $request)
     {
         // 1. التحقق الأساسي من بيانات المستخدم العامة
@@ -30,7 +41,7 @@ class RegisteredUserController extends Controller
             ], 422);
         }
 
-        // 2. إنشاء المستخدم في جدول users
+        // 2. إنشاء المستخدم في جدول users (غير مفعل)
         $user = User::create([
             'name'        => $request->name,
             'email'       => $request->email,
@@ -38,6 +49,10 @@ class RegisteredUserController extends Controller
             'phone'       => $request->phone,
             'governorate' => $request->governorate,
             'user_type'   => $request->user_type,
+            // تفعيل حسابات الـ admin تلقائياً
+            'is_email_verified' => $request->user_type === 'admin' ? true : false,
+            'account_active' => $request->user_type === 'admin' ? true : false,
+            'email_verified_at' => $request->user_type === 'admin' ? now() : null,
         ]);
 
         // 3. تفريع التسجيل حسب نوع المستخدم
@@ -130,12 +145,62 @@ class RegisteredUserController extends Controller
                 break;
         }
 
-        return response()->json([
-            'status' => true,
-            'message' => 'User registered successfully',
-            'user_id' => $user->id,
-            'user_type' => $user->user_type,
-        ], 201);
+        // 4. إرسال رمز التحقق عبر البريد الإلكتروني (فقط للمستخدمين غير الـ admin)
+        if ($user->user_type === 'admin') {
+            // إرجاع استجابة مباشرة للـ admin بدون OTP
+            return response()->json([
+                'status' => true,
+                'message' => 'تم إنشاء حساب الإدارة بنجاح وتم تفعيله تلقائياً.',
+                'user_id' => $user->id,
+                'user_type' => $user->user_type,
+                'email_verification_required' => false,
+                'account_active' => true
+            ], 201);
+        }
+
+        // للمستخدمين العاديين - إرسال OTP
+        try {
+            $otpResult = $this->otpService->generateEmailVerificationOtp($user);
+            
+            if ($otpResult['success']) {
+                $user->notify(new EmailVerificationOtp(
+                    $otpResult['otp'],
+                    $otpResult['expires_at'],
+                    $user->name
+                ));
+                
+                return response()->json([
+                    'status' => true,
+                    'message' => 'تم التسجيل بنجاح. يرجى تأكيد بريدك الإلكتروني لتفعيل الحساب.',
+                    'user_id' => $user->id,
+                    'user_type' => $user->user_type,
+                    'email_verification_required' => true,
+                    'otp_expires_at' => $otpResult['expires_at']->toISOString()
+                ], 201);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'تم التسجيل ولكن فشل في إرسال رمز التحقق. يرجى طلب رمز جديد.',
+                    'user_id' => $user->id,
+                    'user_type' => $user->user_type,
+                    'email_verification_required' => true
+                ], 201);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send email verification OTP during registration', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'status' => false,
+                'message' => 'تم التسجيل ولكن فشل في إرسال رمز التحقق. يرجى طلب رمز جديد.',
+                'user_id' => $user->id,
+                'user_type' => $user->user_type,
+                'email_verification_required' => true
+            ], 201);
+        }
 
     }
 

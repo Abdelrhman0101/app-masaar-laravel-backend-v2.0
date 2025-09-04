@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\PublicPropertyController;
 use App\Http\Controllers\Api\MyOrdersController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\OtpAuthController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,19 @@ Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/upload', [UploadController::class, 'upload']);
 Route::get('/settings', [AppSettingController::class, 'index']);
+
+// OTP Routes
+Route::prefix('otp')->middleware('otp.rate.limit')->group(function () {
+    // Email Verification OTP
+    Route::post('/send-email-verification', [OtpAuthController::class, 'sendEmailVerificationOtp']);
+    Route::post('/verify-email', [OtpAuthController::class, 'verifyEmailVerificationOtp']);
+    Route::post('/resend-email-verification', [OtpAuthController::class, 'resendEmailVerificationOtp']);
+    
+    // Password Reset OTP
+    Route::post('/send-password-reset', [OtpAuthController::class, 'sendPasswordResetOtp']);
+    Route::post('/verify-password-reset', [OtpAuthController::class, 'verifyPasswordResetOtp']);
+    Route::post('/reset-password', [OtpAuthController::class, 'resetPassword']);
+});
 
 // ======= Authenticated Routes =======
 Route::middleware('auth:sanctum')->group(function () {

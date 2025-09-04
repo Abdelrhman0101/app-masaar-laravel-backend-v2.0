@@ -44,6 +44,19 @@ class User extends Authenticatable
         'user_type',
         'is_approved',
         'the_best',
+        'google_id',
+        'avatar',
+        'login_type',
+        'email_verification_code',
+        'email_verification_expires_at',
+        'email_verification_sent_at',
+        'email_verification_attempts',
+        'password_reset_code',
+        'password_reset_expires_at',
+        'password_reset_sent_at',
+        'password_reset_attempts',
+        'is_email_verified',
+        'account_active',
     ];
 
     /**
@@ -54,6 +67,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code',
+        'password_reset_code',
     ];
 
     /**
@@ -66,6 +81,14 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'email_verification_expires_at' => 'datetime',
+            'email_verification_sent_at' => 'datetime',
+            'password_reset_expires_at' => 'datetime',
+            'password_reset_sent_at' => 'datetime',
+            'is_email_verified' => 'boolean',
+            'account_active' => 'boolean',
+            'is_approved' => 'boolean',
+            'the_best' => 'boolean',
         ];
     }
 
