@@ -21,28 +21,34 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 
 /**
  * ======================================================================
- *  هذا هو الجزء الأهم لميزة المحادثات الخاصة بنا
+ *  قنوات البث للمحادثات والميزات المتقدمة
  * ======================================================================
- * 
- * تعريف قناة البث الخاصة بكل محادثة.
- * اسم القناة سيكون ديناميكيًا، مثل 'chat.1' للمحادثة رقم 1، وهكذا.
- * {conversationId} هو متغير سيتم استبداله برقم المحادثة.
  */
-Broadcast::channel('chat.{conversationId}', function ($user, $conversationId) {
-    
-    // أولاً، نجد المحادثة المطلوبة من قاعدة البيانات باستخدام الـ ID.
-    $conversation = Conversation::find($conversationId);
 
-    // إذا لم تكن المحادثة موجودة لأي سبب، نرفض الوصول فورًا.
-    if (! $conversation) {
+// قناة البث الخاصة بكل محادثة للرسائل والأحداث
+Broadcast::channel('chat.{conversationId}', function ($user, $conversationId) {
+    $conversation = Conversation::find($conversationId);
+    
+    if (!$conversation) {
         return false;
     }
-
-    // الآن، نحدد منطق الصلاحية (Authorization Logic):
-    // سنعيد 'true' (مما يعني "مسموح لك بالاستماع") فقط إذا تحقق أحد الشرطين:
-    // الشرط الأول: هل المستخدم الذي يحاول الاستماع هو مشرف (admin)؟
-    //      أو
-    // الشرط الثاني: هل هو المستخدم العادي صاحب هذه المحادثة؟
     
-    return $user->user_type === 'admin' || $user->id === $conversation->user_id;
+    // التحقق من أن المستخدم مشارك في المحادثة أو مدير
+    return $user->user_type === 'admin' || $conversation->hasParticipant($user);
+});
+
+// قناة البث الشخصية لكل مستخدم (حالة الاتصال، الإشعارات)
+Broadcast::channel('user.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
+// قناة البث للمدراء (إحصائيات، تنبيهات إدارية)
+Broadcast::channel('admin.notifications', function ($user) {
+    return $user->user_type === 'admin';
+});
+
+// قناة البث العامة للإشعارات المهمة
+Broadcast::channel('system.announcements', function ($user) {
+    // جميع المستخدمين المسجلين يمكنهم الاستماع للإعلانات العامة
+    return $user !== null;
 });

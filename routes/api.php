@@ -154,17 +154,51 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/provider/service-requests/{id}/complete', [ProviderServiceRequestController::class, 'complete']);
     Route::get('/provider/service-requests/complete', [ProviderServiceRequestController::class, 'completedRequests']);
 
-    // Conversations and Messages
-    Route::get('/conversations', [ConversationController::class, 'index']);
-    Route::post('/conversations/start', [ConversationController::class, 'startOrGet']);
-    Route::get('/conversations/{id}/messages', [MessageController::class, 'index']);
-    Route::post('/messages', [MessageController::class, 'store']);
-    Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
-
+    // ======= Conversations & Messages System =======
+    Route::prefix('conversations')->group(function () {
+        // Conversation Management
+        Route::get('/', [ConversationController::class, 'index']); // Get user's conversations
+        Route::post('/', [ConversationController::class, 'store']); // Create new conversation
+        Route::get('/{conversation}', [ConversationController::class, 'show']); // Get specific conversation
+        Route::patch('/{conversation}/status', [ConversationController::class, 'updateStatus']); // Update conversation status
+        Route::delete('/{conversation}', [ConversationController::class, 'destroy']); // Archive conversation
+        Route::post('/{conversation}/mark-all-read', [ConversationController::class, 'markAllAsRead']); // Mark all messages as read
+        
+        // Messages within conversations
+        Route::get('/{conversation}/messages', [MessageController::class, 'index']); // Get conversation messages
+        Route::post('/{conversation}/messages', [MessageController::class, 'store']); // Send message to conversation
+    });
+    
+    // Message Management
+    Route::prefix('messages')->group(function () {
+        Route::patch('/{message}/read', [MessageController::class, 'markAsRead']); // Mark message as read
+        Route::patch('/{message}', [MessageController::class, 'update']); // Edit message
+        Route::delete('/{message}', [MessageController::class, 'destroy']); // Delete message
+    });
+    
+    // Advanced conversation features
+    Route::middleware(['conversation.participant'])->group(function () {
+        Route::post('/conversations/{conversation}/typing', [ConversationFeatureController::class, 'typing']);
+        Route::get('/conversations/{conversation}/typing-users', [ConversationFeatureController::class, 'getTypingUsers']);
+        Route::get('/conversations/{conversation}/participants-status', [ConversationFeatureController::class, 'getConversationParticipantsStatus']);
+    });
+    
+    // User status features
+    Route::post('/user/status', [ConversationFeatureController::class, 'updateStatus']);
+    Route::get('/user/{user}/status', [ConversationFeatureController::class, 'getUserStatus']);
+    Route::post('/user/heartbeat', [ConversationFeatureController::class, 'heartbeat']);
+    
+    // Admin Conversation Features
+    Route::prefix('admin')->middleware('is_admin')->group(function () {
+        Route::get('/conversations/statistics', [ConversationController::class, 'statistics']); // Admin statistics
+        Route::post('/messages/system', [MessageController::class, 'sendSystemMessage']); // Send system messages
+    });}]}
+    
+    // Legacy Chat Routes (for backward compatibility)
     Route::get('/chat', [UserChatController::class, 'show']);
     Route::post('/chat', [UserChatController::class, 'store']);
-	Route::post('/chat/{conversation}/read', [UserChatController::class, 'markAsRead']);
-
+    Route::post('/chat/{conversation}/read', [UserChatController::class, 'markAsRead']);
+    
     Route::get('/admin/chats/{userId}', [AdminChatController::class, 'show']);
     Route::get('/admin/chats', [AdminChatController::class, 'index'])->name('api.admin.chats.index');
     Route::post('/admin/chats', [AdminChatController::class, 'store']);
@@ -277,7 +311,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-orders/all', [MyOrdersController::class, 'getAllMyOrders']);
 });
 
-// محادثات: تعليم كمقروء (اتركه كما هو إن كان الفرونت يعتمد عليه)
+// Legacy conversation read route (for backward compatibility)
 Route::post('/{id}/read', [ConversationController::class, 'markAsRead']);
 
 // Password reset (Public)

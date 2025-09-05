@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'otp.rate.limit' => \App\Http\Middleware\OtpRateLimit::class,
+            'conversation.participant' => \App\Http\Middleware\ConversationParticipant::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

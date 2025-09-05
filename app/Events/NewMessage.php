@@ -61,9 +61,51 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastWith()
     {
-        // البيانات التي سيتم إرسالها مع الحدث. يتم تحميل المرسل لسهولة استخدامه في الواجهة.
+        // تحميل البيانات المطلوبة مع الرسالة
+        $this->message->load(['sender:id,name,user_type', 'conversation']);
+        
         return [
-            'message' => $this->message->load('sender')
+            'message' => [
+                'id' => $this->message->id,
+                'conversation_id' => $this->message->conversation_id,
+                'content' => $this->message->content,
+                'message_type' => $this->message->message_type,
+                'is_system_message' => $this->message->is_system_message,
+                'read_at' => $this->message->read_at,
+                'created_at' => $this->message->created_at,
+                'updated_at' => $this->message->updated_at,
+                'sender' => $this->message->sender ? [
+                    'id' => $this->message->sender->id,
+                    'name' => $this->message->sender->name,
+                    'user_type' => $this->message->sender->user_type
+                ] : null,
+                'conversation' => [
+                    'id' => $this->message->conversation->id,
+                    'type' => $this->message->conversation->type,
+                    'status' => $this->message->conversation->status
+                ]
+            ],
+            'timestamp' => now()->toISOString()
         ];
+    }
+
+    /**
+     * تحديد الشروط التي يجب أن تتحقق لإرسال البث
+     */
+    public function broadcastWhen()
+    {
+        // إرسال البث دائماً للرسائل العادية
+        // للرسائل النظام، إرسال البث فقط إذا كان مطلوباً
+        return !$this->message->is_system_message || 
+               ($this->message->is_system_message && ($this->message->metadata['broadcast'] ?? true));
+    }
+
+    /**
+     * تحديد المستخدمين الذين يمكنهم الوصول للقناة
+     */
+    public function broadcastToPresenceChannel()
+    {
+        // يمكن استخدامها لاحقاً لتحديد من يمكنه الوصول للقناة
+        return $this->message->conversation->participants()->pluck('id')->toArray();
     }
 }
