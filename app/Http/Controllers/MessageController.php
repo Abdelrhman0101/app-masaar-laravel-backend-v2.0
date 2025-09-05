@@ -70,18 +70,17 @@ class MessageController extends Controller
     /**
      * إرسال رسالة جديدة
      */
-    public function store(Request $request)
+    public function store(Request $request, $conversationId)
     {
         try {
             $request->validate([
-                'conversation_id' => 'required|exists:conversations,id',
                 'content' => 'required|string|max:5000',
                 'message_type' => ['sometimes', Rule::in(array_keys(Message::MESSAGE_TYPES))],
                 'metadata' => 'sometimes|array'
             ]);
 
             $user = Auth::user();
-            $conversation = Conversation::findOrFail($request->conversation_id);
+            $conversation = Conversation::findOrFail($conversationId);
 
             // التحقق من الصلاحية
             if (!$conversation->hasParticipant($user->id)) {
