@@ -17,9 +17,9 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'content',
-        'message_type',
+        'type',
+        'is_read',
         'read_at',
-        'is_system_message',
         'metadata'
     ];
 
@@ -28,7 +28,7 @@ class Message extends Model
      */
     protected $casts = [
         'read_at' => 'datetime',
-        'is_system_message' => 'boolean',
+        'is_read' => 'boolean',
         'metadata' => 'array'
     ];
 
@@ -36,8 +36,8 @@ class Message extends Model
      * القيم الافتراضية للحقول
      */
     protected $attributes = [
-        'message_type' => 'text',
-        'is_system_message' => false
+        'type' => 'text',
+        'is_read' => false
     ];
 
     /**
@@ -71,7 +71,7 @@ class Message extends Model
      */
     public function isRead()
     {
-        return !is_null($this->read_at);
+        return $this->is_read || !is_null($this->read_at);
     }
 
     /**
@@ -80,7 +80,10 @@ class Message extends Model
     public function markAsRead()
     {
         if (!$this->isRead()) {
-            $this->update(['read_at' => now()]);
+            $this->update([
+                'is_read' => true,
+                'read_at' => now()
+            ]);
         }
         return $this;
     }
@@ -90,7 +93,7 @@ class Message extends Model
      */
     public function isSystemMessage()
     {
-        return $this->is_system_message;
+        return $this->type === 'system';
     }
 
     /**
@@ -102,8 +105,8 @@ class Message extends Model
             'conversation_id' => $conversationId,
             'sender_id' => null, // رسائل النظام لا تحتاج مرسل
             'content' => $content,
-            'message_type' => 'system',
-            'is_system_message' => true,
+            'type' => 'system',
+            'is_read' => false,
             'metadata' => $metadata
         ]);
     }
@@ -113,7 +116,7 @@ class Message extends Model
      */
     public function scopeUnread($query)
     {
-        return $query->whereNull('read_at');
+        return $query->where('is_read', false);
     }
 
     /**
@@ -121,7 +124,7 @@ class Message extends Model
      */
     public function scopeRead($query)
     {
-        return $query->whereNotNull('read_at');
+        return $query->where('is_read', true);
     }
 
     /**
@@ -137,7 +140,7 @@ class Message extends Model
      */
     public function scopeSystemMessages($query)
     {
-        return $query->where('is_system_message', true);
+        return $query->where('type', 'system');
     }
 
     /**
@@ -145,7 +148,7 @@ class Message extends Model
      */
     public function scopeUserMessages($query)
     {
-        return $query->where('is_system_message', false);
+        return $query->where('type', '!=', 'system');
     }
 
     /**
@@ -179,7 +182,7 @@ class Message extends Model
     public function canBeEditedBy(User $user)
     {
         // يمكن للمرسل فقط تعديل رسالته وليس رسائل النظام
-        return $this->sender_id === $user->id && !$this->is_system_message;
+        return $this->sender_id === $user->id && !$this->isSystemMessage();
     }
 
     /**
@@ -187,7 +190,7 @@ class Message extends Model
      */
     public function getFormattedContentAttribute()
     {
-        if ($this->message_type === 'system') {
+        if ($this->type === 'system') {
             return "🔔 {$this->content}";
         }
         
@@ -201,7 +204,7 @@ class Message extends Model
     {
         return [
             'id' => $this->id,
-            'type' => $this->message_type,
+            'type' => $this->type,
             'is_read' => $this->isRead(),
             'is_system' => $this->isSystemMessage(),
             'sent_at' => $this->created_at->format('Y-m-d H:i:s'),

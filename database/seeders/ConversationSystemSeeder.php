@@ -55,6 +55,10 @@ class ConversationSystemSeeder extends Seeder
             ]
         );
         
+        // Clear existing conversations and messages to avoid duplicates
+        \App\Models\Message::truncate();
+        \App\Models\Conversation::truncate();
+        
         // Create sample conversations
         
         // 1. Admin-User conversation
@@ -87,16 +91,16 @@ class ConversationSystemSeeder extends Seeder
             ])
         ]);
         
-        // 3. User-User conversation
-        $userUserConversation = Conversation::create([
-            'user1_id' => $normalUser->id,
+        // 3. Admin-Provider conversation (different users to avoid duplicate)
+        $adminProviderConversation = Conversation::create([
+            'user1_id' => $adminUser->id,
             'user2_id' => $providerUser->id,
-            'type' => 'user_user',
-            'title' => 'محادثة عامة',
+            'type' => 'admin_user',
+            'title' => 'محادثة إدارية مع مقدم الخدمة',
             'status' => 'open',
             'last_message_at' => now(),
             'metadata' => json_encode([
-                'tags' => ['عام']
+                'tags' => ['إداري', 'مقدم خدمة']
             ])
         ]);
         
@@ -152,14 +156,22 @@ class ConversationSystemSeeder extends Seeder
             'is_read' => false,
         ]);
         
-        // Messages for user-user conversation
+        // Messages for admin-provider conversation
         Message::create([
-            'conversation_id' => $userUserConversation->id,
-            'sender_id' => $normalUser->id,
-            'content' => 'مرحباً، كيف حالك؟',
+            'conversation_id' => $adminProviderConversation->id,
+            'sender_id' => $adminUser->id,
+            'content' => 'مرحباً، نحتاج لمراجعة بعض الإجراءات معك',
             'type' => 'text',
             'is_read' => true,
             'read_at' => now(),
+        ]);
+        
+        Message::create([
+            'conversation_id' => $adminProviderConversation->id,
+            'sender_id' => $providerUser->id,
+            'content' => 'أهلاً وسهلاً، أنا في الخدمة',
+            'type' => 'text',
+            'is_read' => false,
         ]);
         
         // Re-enable foreign key checks
