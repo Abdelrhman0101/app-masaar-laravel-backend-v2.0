@@ -13,8 +13,14 @@ return new class extends Migration
     {
         Schema::table('messages', function (Blueprint $table) {
             // Add new columns for flexible message system (only if they don't exist)
+            if (!Schema::hasColumn('messages', 'type')) {
+                $table->string('type', 50)->default('text')->after('content');
+            }
+            if (!Schema::hasColumn('messages', 'is_read')) {
+                $table->boolean('is_read')->default(false)->after('type');
+            }
             if (!Schema::hasColumn('messages', 'metadata')) {
-                $table->json('metadata')->nullable()->after('read_at');
+                $table->json('metadata')->nullable()->after('is_read');
             }
             if (!Schema::hasColumn('messages', 'deleted_at')) {
                 $table->softDeletes()->after('updated_at');
@@ -103,6 +109,8 @@ return new class extends Migration
             
             // Drop columns that were added (not the existing ones)
             $table->dropColumn([
+                'type',
+                'is_read',
                 'metadata',
                 'deleted_at'
             ]);
