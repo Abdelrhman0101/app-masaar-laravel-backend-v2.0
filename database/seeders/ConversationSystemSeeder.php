@@ -47,7 +47,7 @@ class ConversationSystemSeeder extends Seeder
             ['email' => 'provider@msar.app'],
             [
                 'name' => 'مقدم خدمة',
-                'user_type' => 'real_estate',
+                'user_type' => 'real_estate_office',
                 'password' => bcrypt('password'),
                 'is_approved' => true,
                 'account_active' => true,

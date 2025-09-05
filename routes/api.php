@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\AdminChatController;
 use App\Http\Controllers\Api\RestaurantProfileController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ConversationFeatureController;
 use App\Http\Controllers\Api\RestaurantBannerController;
 use App\Http\Controllers\Api\PublicRestaurantController;
 use App\Http\Controllers\Api\PublicPropertyController;
@@ -192,7 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->middleware('is_admin')->group(function () {
         Route::get('/conversations/statistics', [ConversationController::class, 'statistics']); // Admin statistics
         Route::post('/messages/system', [MessageController::class, 'sendSystemMessage']); // Send system messages
-    });}]}
+    });
     
     // Legacy Chat Routes (for backward compatibility)
     Route::get('/chat', [UserChatController::class, 'show']);
