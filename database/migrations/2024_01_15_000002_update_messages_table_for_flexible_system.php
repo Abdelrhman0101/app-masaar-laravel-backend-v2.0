@@ -12,27 +12,40 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            // Add new columns for flexible message system
-            $table->enum('type', ['text', 'image', 'file', 'system'])->default('text')->after('content');
-            $table->boolean('is_read')->default(false)->after('type');
-            $table->timestamp('read_at')->nullable()->after('is_read');
-            $table->json('metadata')->nullable()->after('read_at');
-            $table->softDeletes()->after('updated_at');
-            
-            // Add indexes for better performance
-            $table->index(['conversation_id', 'created_at']);
-            $table->index(['sender_id']);
-            $table->index(['type']);
-            $table->index(['is_read']);
-            $table->index(['created_at']);
-            
-            // Add foreign key constraints if they don't exist
-            // Note: We'll check if they exist first to avoid errors
-            if (!Schema::hasColumn('messages', 'conversation_id_foreign')) {
-                $table->foreign('conversation_id')->references('id')->on('conversations')->onDelete('cascade');
+            // Add new columns for flexible message system (only if they don't exist)
+            if (!Schema::hasColumn('messages', 'metadata')) {
+                $table->json('metadata')->nullable()->after('read_at');
             }
-            if (!Schema::hasColumn('messages', 'sender_id_foreign')) {
-                $table->foreign('sender_id')->references('id')->on('users')->onDelete('cascade');
+            if (!Schema::hasColumn('messages', 'deleted_at')) {
+                $table->softDeletes()->after('updated_at');
+            }
+        });
+        
+        // Add indexes in a separate schema call to avoid conflicts
+        Schema::table('messages', function (Blueprint $table) {
+            // Add indexes for better performance
+            try {
+                $table->index(['conversation_id', 'created_at']);
+            } catch (\Exception $e) {
+                // Index might already exist, ignore
+            }
+            
+            try {
+                $table->index(['type']);
+            } catch (\Exception $e) {
+                // Index might already exist, ignore
+            }
+            
+            try {
+                $table->index(['is_read']);
+            } catch (\Exception $e) {
+                // Index might already exist, ignore
+            }
+            
+            try {
+                $table->index(['created_at']);
+            } catch (\Exception $e) {
+                // Index might already exist, ignore
             }
         });
     }
@@ -43,18 +56,33 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            // Drop indexes
-            $table->dropIndex(['conversation_id', 'created_at']);
-            $table->dropIndex(['sender_id']);
-            $table->dropIndex(['type']);
-            $table->dropIndex(['is_read']);
-            $table->dropIndex(['created_at']);
+            // Drop indexes that were added
+            try {
+                $table->dropIndex(['conversation_id', 'created_at']);
+            } catch (\Exception $e) {
+                // Index might not exist, ignore
+            }
             
-            // Drop columns
+            try {
+                $table->dropIndex(['type']);
+            } catch (\Exception $e) {
+                // Index might not exist, ignore
+            }
+            
+            try {
+                $table->dropIndex(['is_read']);
+            } catch (\Exception $e) {
+                // Index might not exist, ignore
+            }
+            
+            try {
+                $table->dropIndex(['created_at']);
+            } catch (\Exception $e) {
+                // Index might not exist, ignore
+            }
+            
+            // Drop columns that were added (not the existing ones)
             $table->dropColumn([
-                'type',
-                'is_read',
-                'read_at',
                 'metadata',
                 'deleted_at'
             ]);

@@ -32,17 +32,21 @@ return new class extends Migration
         
         // Add indexes in a separate schema call to avoid conflicts
         Schema::table('conversations', function (Blueprint $table) {
-            // Add indexes for better performance (check if they don't exist)
-            $indexExists = collect(Schema::getConnection()->getDoctrineSchemaManager()->listTableIndexes('conversations'))
-                ->keys()->contains('conversations_type_index');
-            if (!$indexExists) {
-                $table->index(['type']);
+            // Add indexes for better performance
+            if (Schema::hasColumn('conversations', 'type')) {
+                try {
+                    $table->index(['type']);
+                } catch (\Exception $e) {
+                     // Index might already exist, ignore
+                 }
             }
             
-            $lastMessageIndexExists = collect(Schema::getConnection()->getDoctrineSchemaManager()->listTableIndexes('conversations'))
-                ->keys()->contains('conversations_last_message_at_index');
-            if (!$lastMessageIndexExists) {
-                $table->index(['last_message_at']);
+            if (Schema::hasColumn('conversations', 'last_message_at')) {
+                try {
+                    $table->index(['last_message_at']);
+                } catch (\Exception $e) {
+                     // Index might already exist, ignore
+                 }
             }
         });
     }
