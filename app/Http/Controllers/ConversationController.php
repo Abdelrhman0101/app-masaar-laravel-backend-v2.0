@@ -141,18 +141,38 @@ class ConversationController extends Controller
     {
         try {
             $request->validate([
-                'participant_id' => 'required|exists:users,id|different:' . Auth::id(),
+                'participant_id' => ['required_without:participant_email', 'nullable', 'exists:users,id', 'different:' . Auth::id()],
+                'participant_email' => ['required_without:participant_id', 'nullable', 'email', 'exists:users,email'],
                 'type' => ['sometimes', Rule::in(['admin_user', 'user_service_provider', 'support'])],
                 'title' => 'sometimes|string|max:255',
                 'metadata' => 'sometimes|array'
             ]);
 
             $user = Auth::user();
-            $participantId = $request->participant_id;
-            $participant = User::findOrFail($participantId);
+            
+            // حدد المشارك إما عبر البريد الإلكتروني أو المعرف
+            $participant = null;
+            $participantId = null;
+            
+            if ($request->filled('participant_email')) {
+              $participant = User::where('email', $request->participant_email)->firstOrFail();
+              if ($participant->id === $user->id) {
+                return response()->json([
+                  'status' => false,
+                  'message' => 'لا يمكنك بدء محادثة مع نفسك'
+                ], 422);
+              }
+              $participantId = $participant->id;
+            } else {
+              $participantId = $request->participant_id;
+              $participant = User::findOrFail($participantId);
+            }
 
             // التحقق من وجود محادثة مسبقة
-            $existingConversation = Conversation::createBetweenUsers($user->id, $participantId, true);
+            $sortedUsers = collect([$user->id, $participantId])->sort()->values();
+            $existingConversation = Conversation::where('user1_id', $sortedUsers[0])
+                ->where('user2_id', $sortedUsers[1])
+                ->first();
             
             if ($existingConversation) {
                 return response()->json([
@@ -168,7 +188,12 @@ class ConversationController extends Controller
             }
 
             // تحديد نوع المحادثة تلقائياً
-            $conversationType = $this->determineConversationType($user, $participant, $request->type);
+            $supportAdminEmail = env('SUPPORT_ADMIN_EMAIL', 'admin@msar.app');
+            if ($participant->user_type === 'admin' || strcasecmp($participant->email, $supportAdminEmail) === 0) {
+                $conversationType = 'admin_user';
+            } else {
+                $conversationType = $this->determineConversationType($user, $participant, $request->type);
+            }
 
             DB::beginTransaction();
 
@@ -176,11 +201,14 @@ class ConversationController extends Controller
             $conversation = Conversation::createBetweenUsers(
                 $user->id,
                 $participantId,
-                false,
                 $conversationType,
-                $request->title,
-                $request->metadata ?? []
+                $request->title
             );
+
+            if ($request->filled('metadata')) {
+                $conversation->metadata = $request->metadata;
+                $conversation->save();
+            }
 
             // إرسال رسالة ترحيب تلقائية
             if ($conversationType === 'admin_user') {
