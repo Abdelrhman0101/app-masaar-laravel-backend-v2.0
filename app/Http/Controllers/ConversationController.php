@@ -54,7 +54,7 @@ class ConversationController extends Controller
                     ] : null,
                     'last_message' => $conversation->lastMessage ? [
                         'id' => $conversation->lastMessage->id,
-                        'content' => $conversation->lastMessage->getFormattedContent(),
+                        'content' => $conversation->lastMessage->formatted_content,
                         'sender' => $conversation->lastMessage->sender,
                         'created_at' => $conversation->lastMessage->created_at
                     ] : null,
