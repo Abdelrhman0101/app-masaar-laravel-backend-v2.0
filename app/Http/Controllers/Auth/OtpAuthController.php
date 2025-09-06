@@ -102,6 +102,18 @@ class OtpAuthController extends Controller
     }
 
     /**
+     * Resend email verification OTP (alias to sendEmailVerificationOtp)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function resendEmailVerificationOtp(Request $request): JsonResponse
+    {
+        // Delegate to the same logic used for initial send, which already includes validation and rate limiting
+        return $this->sendEmailVerificationOtp($request);
+    }
+
+    /**
      * Verify email verification OTP
      *
      * @param Request $request
