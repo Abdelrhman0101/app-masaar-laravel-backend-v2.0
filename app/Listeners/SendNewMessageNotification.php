@@ -32,14 +32,20 @@ class SendNewMessageNotification implements ShouldQueue
                 return;
             }
 
+            /** @var \App\Models\Message $message */
             $message = $event->message;
-            $sender = $event->sender;
+            // Load needed relations
+            $message->load(['sender', 'conversation']);
+            $sender = $message->sender; // Fix: sender comes from message relation
             $conversation = $message->conversation;
+
+            if (!$sender) {
+                return; // Safety: no sender associated
+            }
 
             // Get all participants except the sender
             $recipients = $conversation->participants()
-                ->where('user_id', '!=', $sender->id)
-                ->get();
+                ->filter(fn($participant) => $participant->id !== $sender->id);
 
             if ($recipients->isEmpty()) {
                 return;

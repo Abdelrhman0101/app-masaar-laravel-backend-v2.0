@@ -9,9 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\DatabaseMessage;
 use Illuminate\Notifications\Notification;
-use NotificationChannels\Fcm\FcmChannel;
-use NotificationChannels\Fcm\FcmMessage;
-use NotificationChannels\Fcm\Resources\Notification as FcmNotification;
+// NOTE: FCM channel classes are referenced dynamically to avoid IDE errors when the package isn't installed
+// use NotificationChannels\Fcm\FcmChannel;
+// use NotificationChannels\Fcm\FcmMessage;
+// use NotificationChannels\Fcm\Resources\Notification as FcmNotification;
 
 class NewMessageNotification extends Notification implements ShouldQueue
 {
@@ -38,9 +39,10 @@ class NewMessageNotification extends Notification implements ShouldQueue
     {
         $channels = ['database'];
         
-        // Add FCM if user has device tokens
-        if ($notifiable->deviceTokens()->exists()) {
-            $channels[] = FcmChannel::class;
+        // Add FCM channel only if package exists and user has device tokens
+        $fcmChannel = 'NotificationChannels\\Fcm\\FcmChannel';
+        if (class_exists($fcmChannel) && method_exists($notifiable, 'deviceTokens') && $notifiable->deviceTokens()->exists()) {
+            $channels[] = $fcmChannel;
         }
         
         // Add email for important conversations (admin-user type)
@@ -92,17 +94,29 @@ class NewMessageNotification extends Notification implements ShouldQueue
     /**
      * Get the FCM representation of the notification.
      */
-    public function toFcm(object $notifiable): FcmMessage
+    public function toFcm(object $notifiable)
     {
         $senderName = $this->sender->name;
         $conversationType = $this->getConversationTypeLabel();
         
-        return (new FcmMessage(notification: new FcmNotification(
+        $fcmMessageClass = 'NotificationChannels\\Fcm\\FcmMessage';
+        $fcmNotificationClass = 'NotificationChannels\\Fcm\\Resources\\Notification';
+    
+        // Safety: if package isn't present, this method shouldn't be called (channel won't be added)
+        if (!class_exists($fcmMessageClass) || !class_exists($fcmNotificationClass)) {
+            return new \stdClass();
+        }
+        
+        $notification = new $fcmNotificationClass(
             title: "رسالة جديدة من {$senderName}",
             body: $this->getMessagePreview(),
             image: null
-        )))
-        ->data([
+        );
+    
+        $message = new $fcmMessageClass(notification: $notification);
+        
+        // Chain configurations dynamically
+        $message->data([
             'type' => 'new_message',
             'message_id' => (string) $this->message->id,
             'conversation_id' => (string) $this->message->conversation_id,
@@ -110,8 +124,9 @@ class NewMessageNotification extends Notification implements ShouldQueue
             'sender_name' => $senderName,
             'conversation_type' => $this->message->conversation->type,
             'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-        ])
-        ->android(
+        ]);
+    
+        $message->android(
             config: [
                 'priority' => 'high',
                 'notification' => [
@@ -120,8 +135,9 @@ class NewMessageNotification extends Notification implements ShouldQueue
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                 ],
             ]
-        )
-        ->apns(
+        );
+    
+        $message->apns(
             config: [
                 'aps' => [
                     'sound' => 'default',
@@ -130,6 +146,8 @@ class NewMessageNotification extends Notification implements ShouldQueue
                 ],
             ]
         );
+    
+        return $message;
     }
 
     /**
@@ -201,7 +219,8 @@ class NewMessageNotification extends Notification implements ShouldQueue
             return false;
         }
         
-        if ($channel === FcmChannel::class && !$this->shouldSendPush($notifiable)) {
+        $fcmChannel = 'NotificationChannels\\Fcm\\FcmChannel';
+        if ($channel === $fcmChannel && !$this->shouldSendPush($notifiable)) {
             return false;
         }
         

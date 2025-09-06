@@ -31,10 +31,11 @@ class ConversationFeatureController extends Controller
             ], 422);
         }
 
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         
         // Check if user is participant in this conversation
-        if (!$conversation->hasParticipant($user)) {
+        if (!$conversation->hasParticipant($user->id)) {
             return response()->json([
                 'status' => false,
                 'message' => 'غير مسموح لك بالوصول إلى هذه المحادثة'
@@ -74,10 +75,11 @@ class ConversationFeatureController extends Controller
      */
     public function getTypingUsers(Conversation $conversation): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         
         // Check if user is participant in this conversation
-        if (!$conversation->hasParticipant($user)) {
+        if (!$conversation->hasParticipant($user->id)) {
             return response()->json([
                 'status' => false,
                 'message' => 'غير مسموح لك بالوصول إلى هذه المحادثة'
@@ -85,7 +87,7 @@ class ConversationFeatureController extends Controller
         }
 
         $typingUsers = [];
-        $participants = $conversation->participants;
+        $participants = $conversation->participants();
         
         foreach ($participants as $participant) {
             if ($participant->id === $user->id) {
@@ -125,6 +127,7 @@ class ConversationFeatureController extends Controller
             ], 422);
         }
 
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         $status = $request->input('status');
         $lastSeen = now();
@@ -157,12 +160,18 @@ class ConversationFeatureController extends Controller
      */
     public function getUserStatus(User $targetUser): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         
-        // Check if users have any common conversations
-        $hasCommonConversation = $user->conversations()
-            ->whereHas('participants', function ($query) use ($targetUser) {
-                $query->where('user_id', $targetUser->id);
+        // Check if users have any common conversations (without relying on a non-existent relation)
+        $hasCommonConversation = Conversation::query()
+            ->where(function ($q) use ($user) {
+                $q->where('user1_id', $user->id)
+                  ->orWhere('user2_id', $user->id);
+            })
+            ->where(function ($q) use ($targetUser) {
+                $q->where('user1_id', $targetUser->id)
+                  ->orWhere('user2_id', $targetUser->id);
             })
             ->exists();
             
@@ -202,17 +211,18 @@ class ConversationFeatureController extends Controller
      */
     public function getConversationParticipantsStatus(Conversation $conversation): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         
         // Check if user is participant in this conversation
-        if (!$conversation->hasParticipant($user)) {
+        if (!$conversation->hasParticipant($user->id)) {
             return response()->json([
                 'status' => false,
                 'message' => 'غير مسموح لك بالوصول إلى هذه المحادثة'
             ], 403);
         }
 
-        $participants = $conversation->participants;
+        $participants = $conversation->participants();
         $participantsStatus = [];
         
         foreach ($participants as $participant) {
@@ -252,6 +262,7 @@ class ConversationFeatureController extends Controller
      */
     public function heartbeat(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         
         // Update user status to online
