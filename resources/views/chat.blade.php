@@ -247,25 +247,41 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initializeRealtime() {
         await fetchConversationsAPI();
 
-        if (conversations.length > 0) {
+        // الاشتراك في قنوات البث في حال توفر Echo
+        if (typeof Echo !== 'undefined' && conversations.length > 0) {
             conversations.forEach(convo => {
-                // <-- تعديل: نستمع الآن على قناة المحادثة باستخدام convo.id
-                // الباك إند يرسل لنا convo.id وهو conversation_id الصحيح
-                Echo.private(`chat.${convo.id}`)
-                    .listen('.new.message', (event) => { // <-- تعديل: اسم الحدث هو new.message
-                        const message = event.message;
-                        if (message.sender_id === loggedInAdmin.id) return;
-                        
-                        playNotificationSound();
-                        fetchConversationsAPI();
+                try {
+                    Echo.private(`chat.${convo.id}`)
+                        .listen('.new.message', (event) => {
+                            const message = event.message;
+                            if (!message) return;
+                            if (message.sender_id === loggedInAdmin.id) return; // تجاهل رسائلي
+                            
+                            playNotificationSound();
+                            fetchConversationsAPI();
 
-                        // <-- تعديل: التحقق إذا كانت الرسالة تابعة للمستخدم النشط
-                        if (activeUser && activeUser.id === message.sender_id) {
-                            appendMessage(message);
-                        }
-                    });
+                            // إذا كانت الرسالة تابعة للمستخدم النشط، أضِفها مباشرة
+                            if (activeUser && activeUser.id === message.sender_id) {
+                                appendMessage(message);
+                            }
+                        });
+                } catch (e) { console.error('Echo subscribe error', e); }
             });
         }
+
+        // Fallback: Polling دوري لضمان جلب آخر الرسائل والمحادثات حتى لو لم يعمل Echo
+        setInterval(async () => {
+            try {
+                await fetchConversationsAPI();
+                if (activeUser) {
+                    const response = await fetch(`/api/admin/chats/${activeUser.id}`, { headers: { 'Authorization': `Bearer ${API_TOKEN}`, 'Accept': 'application/json' } });
+                    const result = await response.json();
+                    if (result && result.data && Array.isArray(result.data.messages)) {
+                        renderMessages(result.data.messages);
+                    }
+                }
+            } catch (_) { /* تجاهل أخطاء الشبكة المؤقتة */ }
+        }, 3000);
     }
 
     // --- [8] بدء التشغيل ---

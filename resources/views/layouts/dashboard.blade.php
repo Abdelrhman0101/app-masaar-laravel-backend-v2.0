@@ -1236,6 +1236,60 @@
 </script>
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+    <script>
+      (function () {
+        if (window.__echoInitialized) return;
+        try {
+          // The Echo constructor is exposed by the IIFE build
+          if (typeof Echo !== 'function') {
+            console.warn('Laravel Echo library is not available on the page.');
+            return;
+          }
+
+          const token = (function(){
+            try { return localStorage.getItem('token') || ''; } catch (e) { return ''; }
+          })();
+
+          // Read config from environment via Blade
+          const PUSHER_APP_KEY = "{{ env('PUSHER_APP_KEY') }}";
+          const PUSHER_APP_CLUSTER = "{{ env('PUSHER_APP_CLUSTER', 'mt1') }}";
+          const PUSHER_HOST = "{{ env('PUSHER_HOST') }}"; // leave empty if using Pusher Cloud
+          const PUSHER_PORT = Number("{{ env('PUSHER_PORT', 6001) }}");
+          const PUSHER_SCHEME = "{{ env('PUSHER_SCHEME', request()->isSecure() ? 'https' : 'http') }}";
+
+          let echoOptions = {
+            broadcaster: 'pusher',
+            key: PUSHER_APP_KEY,
+            cluster: PUSHER_APP_CLUSTER,
+            forceTLS: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
+            encrypted: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
+            disableStats: true,
+            authEndpoint: "{{ url('/broadcasting/auth') }}",
+            auth: {
+              headers: {
+                'Authorization': token ? `Bearer ${token}` : '',
+                'Accept': 'application/json'
+              }
+            }
+          };
+
+          // If self-hosted websockets server is used, configure host/ports
+          if (PUSHER_HOST && PUSHER_HOST.trim() !== '') {
+            echoOptions.wsHost = PUSHER_HOST;
+            echoOptions.wsPort = PUSHER_PORT;
+            echoOptions.wssPort = PUSHER_PORT;
+            echoOptions.enabledTransports = ['ws', 'wss'];
+          }
+
+          // Initialize and expose globally
+          window.Echo = new Echo(echoOptions);
+          window.__echoInitialized = true;
+          console.log('%cEcho initialized','color:#28a745');
+        } catch (err) {
+          console.error('Failed to initialize Echo:', err);
+        }
+      })();
+    </script>
   
     @yield('scripts')
 
