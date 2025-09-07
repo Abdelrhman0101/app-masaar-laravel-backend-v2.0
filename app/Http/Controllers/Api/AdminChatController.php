@@ -28,7 +28,8 @@ class AdminChatController extends Controller
         $adminId = $request->user()->id;
 
         $q = Conversation::query()
-            ->with(['user:id,name,email,profile_image'])
+            // لا توجد علاقة باسم "user" على Conversation، لذلك نحتاج لتحميل user1 و user2
+            ->with(['user1:id,name,email,profile_image', 'user2:id,name,email,profile_image'])
             ->where('user2_id', $adminId)
             ->orderByDesc('updated_at');
 
@@ -43,6 +44,9 @@ class AdminChatController extends Controller
         $payload = $convs->map(function ($c) use ($adminId) {
             $last = $c->messages()->latest('created_at')->first();
 
+            // تحديد الطرف الآخر (غير الأدمن) لإظهاره في القائمة
+            $other = ($c->user1_id == $adminId) ? $c->user2 : $c->user1;
+
             // unread_count اختياري لو عندك read_at
             try {
                 $unread = $c->messages()
@@ -55,11 +59,11 @@ class AdminChatController extends Controller
 
             return [
                 'id'   => $c->id,
-                'user' => $c->user ? [
-                    'id'            => $c->user->id,
-                    'name'          => $c->user->name,
-                    'email'         => $c->user->email,
-                    'profile_image' => $c->user->profile_image,
+                'user' => $other ? [
+                    'id'            => $other->id,
+                    'name'          => $other->name,
+                    'email'         => $other->email,
+                    'profile_image' => $other->profile_image,
                 ] : null,
 
                 // نفس الاسم الذي يقرأه الفرونت
