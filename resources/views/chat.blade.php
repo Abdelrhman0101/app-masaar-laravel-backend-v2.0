@@ -79,13 +79,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- [1] إعدادات وتحققات أساسية ---
     const API_TOKEN = localStorage.getItem('token');
     if (!API_TOKEN) { window.location.href = '/login'; return; }
-    
-    if (typeof Echo === 'undefined') {
-        console.error('Laravel Echo is not defined. Make sure you have included app.js or bootstrap.js');
-        return;
-    }
 
     const loggedInAdmin = JSON.parse(localStorage.getItem('user'));
+    const isAllowedAdmin = loggedInAdmin && loggedInAdmin.user_type === 'admin' && ((loggedInAdmin.email || '').toLowerCase() === 'admin@msar.app');
+    if (!isAllowedAdmin) {
+        const container = document.querySelector('.chat-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="w-100 p-5 text-center">
+                    <h3 class="text-danger mb-3">غير مصرح</h3>
+                    <p class="text-muted">ليس لديك صلاحية لعرض محادثات الأدمن مع العملاء.</p>
+                </div>
+            `;
+        }
+        return;
+    }
+    
+    if (typeof Echo === 'undefined') {
+        console.error('Laravel Echo غير محمّل. تأكد من تضمين app.js/ bootstrap.js');
+        // لا نوقف الصفحة بالكامل حتى لو Echo غير متاح
+    }
     
     // --- [2] عناصر الصفحة (لا تغيير هنا) ---
     const conversationsContainer = document.getElementById('conversationsContainer');
@@ -102,11 +115,28 @@ document.addEventListener('DOMContentLoaded', function() {
     let activeUser = null; // <-- تعديل: الآن نتتبع المستخدم النشط بدلاً من المحادثة
     let conversations = [];
 
-    // --- [4] دوال مساعدة (لا تغيير هنا) ---
-    const playNotificationSound = () => { /* ... */ };
-    const renderMessages = (messages) => { /* ... */ };
-    const appendMessage = (message) => { /* ... */ };
-    const scrollToBottom = () => { /* ... */ };
+    // --- [4] دوال مساعدة ---
+    const playNotificationSound = () => {
+        try { notificationSound.currentTime = 0; notificationSound.play(); } catch (e) { /* تجاهل */ }
+    };
+    const renderMessages = (messages) => {
+        if (!Array.isArray(messages)) { messagesContainer.innerHTML = ''; return; }
+        messagesContainer.innerHTML = messages.map(m => {
+            const isMine = (m.sender_id === loggedInAdmin.id) || (m.sender && m.sender.id === loggedInAdmin.id);
+            const cls = isMine ? 'received' : 'sent';
+            const content = ((m.content ?? '') + '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return `<div class="message-bubble ${cls}">${content}</div>`;
+        }).join('');
+        scrollToBottom();
+    };
+    const appendMessage = (message) => {
+        const isMine = (message.sender_id === loggedInAdmin.id) || (message.sender && message.sender.id === loggedInAdmin.id);
+        const cls = isMine ? 'received' : 'sent';
+        const content = ((message.content ?? '') + '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        messagesContainer.insertAdjacentHTML('beforeend', `<div class="message-bubble ${cls}">${content}</div>`);
+        scrollToBottom();
+    };
+    const scrollToBottom = () => { messagesContainer.scrollTop = messagesContainer.scrollHeight; };
 
     const renderConversations = () => {
         conversationsContainer.innerHTML = conversations.map(convo => {

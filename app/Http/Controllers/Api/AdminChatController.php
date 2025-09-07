@@ -21,6 +21,10 @@ class AdminChatController extends Controller
      */
     public function index(Request $request)
     {
+        // منع أي حساب غير الأدمن المحدد
+        if (!$this->isAllowedAdmin($request)) {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك برؤية محادثات الأدمن.'], 403);
+        }
         $adminId = $request->user()->id;
 
         $q = Conversation::query()
@@ -84,6 +88,10 @@ class AdminChatController extends Controller
      */
     public function show(Request $request, int $userId)
     {
+        // منع أي حساب غير الأدمن المحدد
+        if (!$this->isAllowedAdmin($request)) {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك برؤية محادثات الأدمن.'], 403);
+        }
         $adminId = $request->user()->id;
 
         $conversation = Conversation::query()
@@ -126,6 +134,10 @@ class AdminChatController extends Controller
      */
     public function store(Request $request)
     {
+        // منع أي حساب غير الأدمن المحدد
+        if (!$this->isAllowedAdmin($request)) {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك بإرسال رسائل الأدمن.'], 403);
+        }
         $request->validate([
             'user_id' => 'required|integer|exists:users,id',
             'content' => 'required|string',
@@ -248,5 +260,14 @@ class AdminChatController extends Controller
             'status'  => true,
             'message' => $message,
         ], 201);
+    }
+
+    // التحقق من أن المستخدم هو الأدمن المصرّح به فقط
+    private function isAllowedAdmin(Request $request): bool
+    {
+        $u = $request->user();
+        if (!$u) return false;
+        $email = strtolower((string) ($u->email ?? ''));
+        return ($u->user_type === 'admin') && ($email === 'admin@msar.app');
     }
 }
