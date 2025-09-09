@@ -1264,7 +1264,7 @@
             forceTLS: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
             encrypted: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
             disableStats: true,
-            authEndpoint: "{{ url('/broadcasting/auth') }}",
+            authEndpoint: "{{ url('/api/broadcasting/auth') }}",
             auth: {
               headers: {
                 'Authorization': token ? `Bearer ${token}` : '',
@@ -1291,6 +1291,306 @@
       })();
     </script>
   
+    @stack('styles')
+
+</head>
+<body>
+    <script>
+        // حماية الصفحة
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login';
+        }
+    </script>
+    <div class="d-flex">
+        <nav class="sidebar d-flex flex-column">
+            <div class="logo-section">
+                <div class="logo">
+                    <img src="https://msar.app/storage/uploads/images/masar.png" alt="Masar Logo" class="logo-image">
+                </div>
+                <h4>مسار</h4>
+                <small style="opacity: 0.8;">لوحة التحكم</small>
+            </div>
+            
+            <div class="user-info" id="userInfo">
+                <!-- سيتم تعبئة معلومات المستخدم هنا -->
+            </div>
+            
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard" class="nav-link">
+                        <i class="bi bi-house-door"></i>
+                        الرئيسية
+                    </a>
+                </li>
+               <li class="nav-item">
+                    <a href="/notifications" class="nav-link">
+                        <i class="bi bi-house-door"></i>
+                        إدارة الأشعارات
+                  
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/accounts" class="nav-link">
+                        <i class="bi bi-people"></i>
+                        إدارة الحسابات
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/requests" class="nav-link">
+                        <i class="bi bi-clipboard-check"></i>
+                        إدارة الطلبات
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/securityPermits" class="nav-link">
+                        <i class="bi bi-shield-check"></i>
+                        التصاريح الأمنية
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('chat') }}" class="nav-link">
+                        <i class="bi bi-chat-dots-fill"></i>
+                        محادثات العملاء
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/appController" class="nav-link">
+                        <i class="bi bi-gear"></i>
+                        إدارة التطبيق
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/AppSettings" class="nav-link">
+                        <i class="bi bi-info-circle"></i>
+                        معلومات التطبيق
+                    </a>
+                </li>
+              
+            </ul>
+
+            <button id="logoutBtn" class="logout-btn">
+                <i class="bi bi-box-arrow-right me-2"></i>
+                تسجيل الخروج
+            </button>
+        </nav>
+        <main class="flex-fill main-content">
+          <button class="btn" id="sidebarToggle" aria-label="Toggle sidebar">
+    <i class="bi bi-list"></i>
+</button>
+            <div class="content-wrapper">
+              
+                
+                @yield('content')
+            </div>
+        </main>
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    </div>
+
+    <script>
+        // عرض اسم المستخدم من localStorage
+        const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+        if (user) {
+            document.getElementById('userInfo').innerHTML = `
+                <div>
+                    <strong>${user.name}</strong><br>
+                    <small>${user.email}</small>
+                </div>
+            `;
+        }
+
+        // زر تسجيل الخروج
+        document.getElementById('logoutBtn').onclick = function () {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        };
+        
+        // وظائف مربع البحث المتقدم
+        const searchInput = document.getElementById('globalSearch');
+        const searchIcon = document.getElementById('searchIcon');
+        const searchSuggestions = document.getElementById('searchSuggestions');
+        
+        // بيانات الاقتراحات
+        const searchData = [
+            { title: 'إدارة الحسابات', url: '/accounts', icon: 'bi-people' },
+            { title: 'إدارة الطلبات', url: '/requests', icon: 'bi-clipboard-check' },
+            { title: 'التصاريح الأمنية', url: '/securityPermits', icon: 'bi-shield-check' },
+            { title: 'إدارة التطبيق', url: '/appController', icon: 'bi-gear' },
+            { title: 'معلومات التطبيق', url: '/AppSettings', icon: 'bi-info-circle' },
+            { title: 'الرئيسية', url: '/dashboard', icon: 'bi-house-door' }
+        ];
+        
+        // البحث والتصفية
+        function filterSuggestions(query) {
+            if (!query.trim()) {
+                searchSuggestions.classList.remove('show');
+                return;
+            }
+            
+            const filtered = searchData.filter(item => 
+                item.title.includes(query) || 
+                item.title.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            if (filtered.length > 0) {
+                searchSuggestions.innerHTML = filtered.map(item => `
+                    <div class="search-suggestion-item" onclick="navigateTo('${item.url}')">
+                        <i class="bi ${item.icon}"></i>
+                        <span>${item.title}</span>
+                    </div>
+                `).join('');
+                searchSuggestions.classList.add('show');
+            } else {
+                searchSuggestions.innerHTML = `
+                    <div class="search-suggestion-item">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <span>لا توجد نتائج</span>
+                    </div>
+                `;
+                searchSuggestions.classList.add('show');
+            }
+        }
+        
+        // التنقل إلى الصفحة
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+        
+        // أحداث مربع البحث - مع فحص وجود العناصر
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                filterSuggestions(e.target.value);
+            });
+            
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim()) {
+                    filterSuggestions(this.value);
+                }
+            });
+            
+            // البحث عند الضغط على Enter
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const query = this.value.trim();
+                    if (query) {
+                        const firstMatch = searchData.find(item => 
+                            item.title.includes(query) || 
+                            item.title.toLowerCase().includes(query.toLowerCase())
+                        );
+                        if (firstMatch) {
+                            navigateTo(firstMatch.url);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // إخفاء الاقتراحات عند النقر خارجها
+        document.addEventListener('click', function(e) {
+            if (searchSuggestions && !e.target.closest('.search-container')) {
+                searchSuggestions.classList.remove('show');
+            }
+        });
+        
+        // تأثير النقر على أيقونة البحث
+        if (searchIcon) {
+            searchIcon.addEventListener('click', function() {
+                if (searchInput) {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        const firstMatch = searchData.find(item => 
+                            item.title.includes(query) || 
+                            item.title.toLowerCase().includes(query.toLowerCase())
+                        );
+                        if (firstMatch) {
+                            navigateTo(firstMatch.url);
+                        }
+                    } else {
+                        searchInput.focus();
+                    }
+                }
+            });
+        }
+    </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const body = document.body;
+
+        // عند الضغط على زر فتح القائمة
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                body.classList.toggle('sidebar-open');
+            });
+        }
+
+        // عند الضغط على الخلفية المعتمة لإغلاق القائمة
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                body.classList.remove('sidebar-open');
+            });
+        }
+    });
+</script>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+    <script>
+      (function () {
+        if (window.__echoInitialized) return;
+        try {
+          // The Echo constructor is exposed by the IIFE build
+          if (typeof Echo !== 'function') {
+            console.warn('Laravel Echo library is not available on the page.');
+            return;
+          }
+
+          const token = (function(){
+            try { return localStorage.getItem('token') || ''; } catch (e) { return ''; }
+          })();
+
+          // Read config from environment via Blade
+          const PUSHER_APP_KEY = "{{ env('PUSHER_APP_KEY') }}";
+          const PUSHER_APP_CLUSTER = "{{ env('PUSHER_APP_CLUSTER', 'mt1') }}";
+          const PUSHER_HOST = "{{ env('PUSHER_HOST') }}"; // leave empty if using Pusher Cloud
+          const PUSHER_PORT = Number("{{ env('PUSHER_PORT', 6001) }}");
+          const PUSHER_SCHEME = "{{ env('PUSHER_SCHEME', request()->isSecure() ? 'https' : 'http') }}";
+
+          let echoOptions = {
+            broadcaster: 'pusher',
+            key: PUSHER_APP_KEY,
+            cluster: PUSHER_APP_CLUSTER,
+            forceTLS: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
+            encrypted: (PUSHER_SCHEME === 'https') || (location.protocol === 'https:'),
+            disableStats: true,
+            authEndpoint: "{{ url('/api/broadcasting/auth') }}",
+            auth: {
+              headers: {
+                'Authorization': token ? `Bearer ${token}` : '',
+                'Accept': 'application/json'
+              }
+            }
+          };
+
+          // If self-hosted websockets server is used, configure host/ports
+          if (PUSHER_HOST && PUSHER_HOST.trim() !== '') {
+            echoOptions.wsHost = PUSHER_HOST;
+            echoOptions.wsPort = PUSHER_PORT;
+            echoOptions.wssPort = PUSHER_PORT;
+            echoOptions.enabledTransports = ['ws', 'wss'];
+          }
+
+          // Initialize and expose globally
+          window.Echo = new Echo(echoOptions);
+          window.__echoInitialized = true;
+          console.log('%cEcho initialized','color:#28a745');
+        } catch (err) {
+          console.error('Failed to initialize Echo:', err);
+        }
+      })();
+    </script>
+  
+    @stack('scripts')
     @yield('scripts')
 
 </body>
