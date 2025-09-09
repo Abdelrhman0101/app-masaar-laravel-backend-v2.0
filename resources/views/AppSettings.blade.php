@@ -530,14 +530,17 @@ function renderRestaurantBanners() {
     let html = `<div class="modern-form"><h4>بنرات المطاعم</h4>
         <div id="restaurantBannersList">`;
 
-    restaurantBannersData.forEach(banner => {
-        // IMPORTANT: Assumes your API response is an array of objects like [{id: 1, image_url: '...'}, ...]
+    restaurantBannersData.forEach((banner, index) => {
+        // Handle both object format {id, image_url} and string format
+        const bannerId = banner.id || index;
+        const imageUrl = banner.image_url || banner;
+        
         html += `
-        <div class="modern-input-group banner-row" data-id="${banner.id}">
-            <img src="${banner.image_url}" alt="restaurant banner" class="modern-banner-preview">
-            <input type="text" class="modern-input" value="${banner.image_url}" readonly>
-            <a href="${banner.image_url}" target="_blank" class="modern-btn modern-btn-outline" title="معاينة"><i class="bi bi-image"></i></a>
-            <button type="button" class="modern-btn modern-btn-danger" onclick="deleteRestaurantBanner(${banner.id})">🗑️ حذف</button>
+        <div class="modern-input-group banner-row" data-id="${bannerId}">
+            <img src="${imageUrl}" alt="restaurant banner" class="modern-banner-preview">
+            <input type="text" class="modern-input" value="${imageUrl}" readonly>
+            <a href="${imageUrl}" target="_blank" class="modern-btn modern-btn-outline" title="معاينة"><i class="bi bi-image"></i></a>
+            <button type="button" class="modern-btn modern-btn-danger" onclick="deleteRestaurantBanner(${bannerId})">🗑️ حذف</button>
         </div>`;
     });
 

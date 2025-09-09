@@ -9,17 +9,17 @@ use Illuminate\Http\Request;
 class RestaurantBannerController extends Controller
 {
     /**
-     * جلب قائمة بكل روابط البنرات.
+     * جلب قائمة بكل البنرات مع البيانات الكاملة.
      * GET /api/restaurant-banners
      */
     public function index()
     {
-        // جلب الروابط فقط مرتبة حسب حقل الترتيب
-        $bannerUrls = RestaurantBanner::orderBy('position')->pluck('image_url');
+        // جلب البنرات مع البيانات الكاملة مرتبة حسب حقل الترتيب
+        $banners = RestaurantBanner::orderBy('position')->get(['id', 'image_url', 'position']);
 
-        // إرجاع الرد بنفس التنسيق الذي طلبته
+        // إرجاع الرد بالتنسيق الصحيح
         return response()->json([
-            'ResturantBanners' => $bannerUrls
+            'ResturantBanners' => $banners
         ]);
     }
 
