@@ -1502,7 +1502,7 @@ let currentType = null;
 let pollingInterval = null;
 let detailsUserId = null;
 let userToDelete = null;
-const IMAGE_BASE = 'http://192.168.1.7:8000/storage/uploads/images/';
+const IMAGE_BASE = 'http://msar.app/storage/uploads/images/';
 
 const userTypeFields = {
   'restaurant': [
