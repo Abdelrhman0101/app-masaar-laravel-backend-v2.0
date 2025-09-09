@@ -7,14 +7,14 @@ use App\Http\Controllers\Auth\SocialLoginController;
 // صفحة تسجيل الدخول
 Route::get('/login', function () {
     return view('login');
-})->name('login');
+})->name('login')->middleware('guest');
 Route::get('/', function () {
     return view('login');
-})->name('login');
+})->name('login')->middleware('guest');
 // صفحة الداشبورد
 Route::get('/dashboard', function () {
     return view('dashboard');
-})->name('dashboard');
+})->name('dashboard')->middleware('auth');
 // صفحة ادارة الحسابات
 Route::get('/accounts', function () {
     return view('accounts');

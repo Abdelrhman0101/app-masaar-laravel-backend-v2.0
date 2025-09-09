@@ -1753,7 +1753,7 @@ function renderUserDetails(user) {
         
         const isImage = typeof value === 'string' && value && /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(value);
         if (isImage) {
-            const src = value.startsWith('http') ? value : IMAGE_BASE + value;
+            const src = value.startsWith('http') ? value : value;
             return `<div class="details-image-container">
                         <img src="${src}" class="details-image" onclick="openImgFull('${src}')" alt="صورة">
                         <div class="details-image-overlay">
@@ -1892,7 +1892,7 @@ function renderUserDetails(user) {
             sectionHtml += '<div class="images-section"><h6 class="images-title"><i class="bi bi-images"></i> الصور والمرفقات</h6>';
             sectionHtml += '<div class="images-grid">';
             images.forEach(item => {
-                const src = item.value.startsWith('http') ? item.value : IMAGE_BASE + item.value;
+                const src = item.value.startsWith('http') ? item.value : item.value;
                 sectionHtml += `<div class="image-card">
                                 <div class="image-label">${getFieldLabel(item.key)}</div>
                                 <div class="details-image-container enhanced">
@@ -1973,7 +1973,7 @@ function buildFormField(field, user) {
         return `<div class="mb-3"><label class="form-label">${field.label}</label><select class="form-select" name="${field.name}">${opts}</select></div>`;
     }
     if (field.type === 'image') {
-        return `<div class="mb-3"><label class="form-label">${field.label}</label><br><img src="${val ? IMAGE_BASE+val : ''}" style="max-width:80px;max-height:60px;${val?'':'display:none;'}" id="img_preview_${field.name}" class="rounded border mb-2"><input type="file" class="form-control" onchange="uploadImage(event, '${field.name}')"><input type="hidden" name="${field.name}" value="${val}"></div>`;
+        return `<div class="mb-3"><label class="form-label">${field.label}</label><br><img src="${val ? val : ''}" style="max-width:80px;max-height:60px;${val?'':'display:none;'}" id="img_preview_${field.name}" class="rounded border mb-2"><input type="file" class="form-control" onchange="uploadImage(event, '${field.name}')"><input type="hidden" name="${field.name}" value="${val}"></div>`;
     }
     return '';
 }
@@ -1995,7 +1995,7 @@ async function uploadImage(event, fieldName) {
     const data = await res.json();
     if (data.status && data.files && data.files[0]) {
         document.querySelector(`[name="${fieldName}"]`).value = data.files[0];
-        document.getElementById(`img_preview_${fieldName}`).src = IMAGE_BASE + data.files[0];
+        document.getElementById(`img_preview_${fieldName}`).src =  data.files[0];
         document.getElementById(`img_preview_${fieldName}`).style.display = 'inline-block';
     } else { alert('فشل رفع الصورة'); }
 }
