@@ -30,13 +30,13 @@ class AdminChatController extends Controller
         $q = Conversation::query()
             // لا توجد علاقة باسم "user" على Conversation، لذلك نحتاج لتحميل user1 و user2
             ->with(['user1:id,name,email,profile_image', 'user2:id,name,email,profile_image'])
-            ->where('user2_id', $adminId)
+            // تضمين كل المحادثات التي يكون فيها الأدمن طرفاً (سواء كان user1 أو user2)
+            ->where(function ($qq) use ($adminId) {
+                $qq->where('user1_id', $adminId)->orWhere('user2_id', $adminId);
+            })
             ->orderByDesc('updated_at');
 
-        // started_by اختيارية إن كان العمود موجود
-        if (Schema::hasColumn('conversations', 'started_by')) {
-            $q->where('started_by', 'user');
-        }
+        // لا نقيد started_by هنا لنضمن ظهور كل المحادثات سواء بدأها المستخدم أو الأدمن
 
         $convs = $q->get();
 
@@ -112,21 +112,31 @@ class AdminChatController extends Controller
                 'status' => true,
                 'data'   => [
                     'conversation_id' => null,
-                    'messages'        => [],   // الفرونت يقرأ result.data.messages
+                    'messages'        => [],
                 ],
             ]);
         }
 
+        // Mark all incoming (from user) unread messages as read now
+        try {
+            $conversation->messages()
+                ->whereNull('read_at')
+                ->where('sender_id', '!=', $adminId)
+                ->update(['read_at' => now()]);
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         $messages = $conversation->messages()
-            ->with('sender:id,name') // اختياري
+            ->with('sender:id,name')
             ->orderBy('created_at', 'asc')
-            ->get(['id','conversation_id','sender_id','content','created_at']);
+            ->get(['id','conversation_id','sender_id','content','created_at','read_at']);
 
         return response()->json([
             'status' => true,
             'data'   => [
                 'conversation_id' => $conversation->id,
-                'messages'        => $messages,  // الفرونت يقرأ result.data.messages
+                'messages'        => $messages,
             ],
         ]);
     }

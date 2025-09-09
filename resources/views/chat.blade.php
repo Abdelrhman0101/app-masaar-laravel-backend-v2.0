@@ -24,7 +24,7 @@
     .conversation-item.active .conversation-details h6, .conversation-item.active .conversation-details p { color: var(--white);}
     .profile-pic { width: 50px; height: 50px; border-radius: 50%; margin-left: 1rem; object-fit: cover;}
     .conversation-details { flex-grow: 1; overflow: hidden;}
-    .conversation-details h6 { margin: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    .conversation-details h6 { margin: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: .5rem;}
     .conversation-details p { margin: 0; font-size: 0.9rem; color: #6c757d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
     .chat-area { flex-grow: 1; display: flex; flex-direction: column;}
     .chat-header { display: flex; align-items: center; padding: 1rem 1.5rem; background-color: var(--white); border-bottom: 1px solid #e9ecef;}
@@ -32,12 +32,13 @@
     #emptyChatView i { font-size: 5rem; color: #e9ecef;}
     .messages-area { flex-grow: 1; overflow-y: auto; padding: 1.5rem; background-color: #f1f2f6;}
     .message-bubble { max-width: 70%; padding: 0.75rem 1.25rem; border-radius: 18px; margin-bottom: 1rem; line-height: 1.5; position: relative;}
-    .message-bubble.sent { background-color: var(--white); color: var(--dark-gray); margin-right: auto; border-bottom-right-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+    .message-bubble.sent { background-color: var(--white); color: var(--dark-gray); margin-right: auto; border-bottom-right-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}    
     .message-bubble.received { background-color: var(--primary-orange); color: var(--white); margin-left: auto; border-bottom-left-radius: 4px;}
-    .chat-footer { padding: 1rem 1.5rem; background-color: var(--white); border-top: 1px solid #e9ecef;}
-    #sendMessageForm { display: flex; align-items: center;}
-    #messageInput { flex-grow: 1; border: 1px solid #dee2e6; border-radius: 20px; padding: 0.75rem 1.25rem; resize: none; transition: box-shadow 0.2s ease;}
-    #messageInput:focus { box-shadow: 0 0 0 0.2rem rgba(252, 135, 0, 0.25); border-color: var(--primary-orange);}
+    /* إضافة منطقة ميتاداتا لوقت الرسالة وحالة القراءة */
+    .message-meta { font-size: 0.75rem; opacity: 0.8; margin-top: 0.35rem; }
+    .message-bubble.sent .message-meta { text-align: left; color: #6c757d; }
+    .message-bubble.received .message-meta { text-align: right; color: rgba(255,255,255,0.9); }
+    .read-badge { font-size: 0.7rem; margin-inline-start: .5rem; }
     #sendMessageBtn { min-width: 50px; height: 50px; border-radius: 50%; background-color: var(--primary-orange); color: white; border: none; margin-right: 1rem; font-size: 1.5rem; transition: background-color 0.2s ease;}
     #sendMessageBtn:hover { background-color: #e67600;}
 </style>
@@ -119,34 +120,62 @@ document.addEventListener('DOMContentLoaded', function() {
     const playNotificationSound = () => {
         try { notificationSound.currentTime = 0; notificationSound.play(); } catch (e) { /* تجاهل */ }
     };
+
+    // تنسيق الوقت بنمط hh:mm AM/PM
+    const formatTime = (ts) => {
+        if (!ts) return '';
+        const d = new Date(ts);
+        if (isNaN(d)) return '';
+        let h = d.getHours();
+        const m = d.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = ((h + 11) % 12) + 1; // تحويل لـ 12-hour
+        const hh = h.toString().padStart(2, '0');
+        return `${hh}:${m} ${ampm}`;
+    };
+
     const renderMessages = (messages) => {
         if (!Array.isArray(messages)) { messagesContainer.innerHTML = ''; return; }
         messagesContainer.innerHTML = messages.map(m => {
             const isMine = (m.sender_id === loggedInAdmin.id) || (m.sender && m.sender.id === loggedInAdmin.id);
             const cls = isMine ? 'received' : 'sent';
             const content = ((m.content ?? '') + '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            return `<div class="message-bubble ${cls}">${content}</div>`;
+            const time = formatTime(m.created_at);
+            const readText = (isMine && m.read_at) ? ' · تمت القراءة' : '';
+            return `<div class="message-bubble ${cls}">
+                        <div class="message-content">${content}</div>
+                        <div class="message-meta">${time}${readText}</div>
+                    </div>`;
         }).join('');
         scrollToBottom();
     };
+
     const appendMessage = (message) => {
         const isMine = (message.sender_id === loggedInAdmin.id) || (message.sender && message.sender.id === loggedInAdmin.id);
         const cls = isMine ? 'received' : 'sent';
         const content = ((message.content ?? '') + '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        messagesContainer.insertAdjacentHTML('beforeend', `<div class="message-bubble ${cls}">${content}</div>`);
+        const time = formatTime(message.created_at || new Date().toISOString());
+        const readText = (isMine && message.read_at) ? ' · تمت القراءة' : '';
+        messagesContainer.insertAdjacentHTML('beforeend', `<div class="message-bubble ${cls}">
+            <div class="message-content">${content}</div>
+            <div class="message-meta">${time}${readText}</div>
+        </div>`);
         scrollToBottom();
     };
+
     const scrollToBottom = () => { messagesContainer.scrollTop = messagesContainer.scrollHeight; };
 
     const renderConversations = () => {
         conversationsContainer.innerHTML = conversations.map(convo => {
             const lastMessageContent = convo.latest_message?.content ?? 'لا توجد رسائل بعد...';
+            const unread = (convo.unread_count || 0);
+            const unreadBadge = unread > 0 ? `<span class="badge rounded-pill bg-danger me-2">${unread}</span>` : '';
             // <-- تعديل: الآن data-id يحمل user_id مباشرة لأنه هو المعرف للمحادثة
             return `
             <div class="conversation-item" data-id="${convo.user.id}">
                 <img class="profile-pic" src="https://avatar.iran.liara.run/public/boy?username=${convo.user.name}" alt="${convo.user.name}">
                 <div class="conversation-details">
-                    <h6>${convo.user.name}</h6>
+                    <h6>${convo.user.name} ${unreadBadge}</h6>
                     <p>${lastMessageContent.substring(0, 30)}${lastMessageContent.length > 30 ? '...' : ''}</p>
                 </div>
             </div>`;
@@ -223,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const content = messageInput.value.trim();
         if (!content || !activeUser) return; // <-- تعديل: نتأكد من وجود مستخدم نشط
 
-        const tempMessage = { content: content, sender_id: loggedInAdmin.id };
+        const tempMessage = { content: content, sender_id: loggedInAdmin.id, created_at: new Date().toISOString(), read_at: null };
         appendMessage(tempMessage);
         
         const originalMessage = messageInput.value;
@@ -240,6 +269,14 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             messageInput.value = originalMessage;
             if(messagesContainer.lastChild) messagesContainer.lastChild.remove();
+        }
+    });
+
+    // دعم الإرسال بزر Enter (Shift+Enter لسطر جديد)
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessageForm.dispatchEvent(new Event('submit', { cancelable: true }));
         }
     });
 
