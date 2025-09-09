@@ -6,49 +6,43 @@ use App\Http\Controllers\Auth\SocialLoginController;
 
 // صفحة تسجيل الدخول
 Route::get('/login', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
     return view('login');
 })->name('login');
 Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
-    return redirect()->route('login');
+    return view('dashboard');
 });
 // صفحة الداشبورد
 Route::get('/dashboard', function () {
     return view('dashboard');
-})->name('dashboard')->middleware('auth');
+})->name('dashboard');
 // صفحة ادارة الحسابات
 Route::get('/accounts', function () {
     return view('accounts');
-})->name('accounts')->middleware('auth');
+})->name('accounts');
 Route::get('/notifications', function () {
     return view('notifications');
-})->name('notifications')->middleware('auth');
+})->name('notifications');
 // 
 Route::get('/requests', function () {
     return view('requests');
-})->name('requests')->middleware('auth');
+})->name('requests');
 
 Route::get('/securityPermits', function () {
     return view('securityPermits');
-})->name('securityPermits')->middleware('auth');
+})->name('securityPermits');
 
 Route::get('/appController', function () {
     return view('appController');
-})->name('appController')->middleware('auth');
+})->name('appController');
 Route::get('/AppSettings', function () {
     return view('AppSettings');
-})->name('AppSettings')->middleware('auth');
+})->name('AppSettings');
 // ... (المسارات الأخرى)
 
 // صفحة المحادثات
 Route::get('/chat', function () {
     return view('chat'); // اسم ملف ה-Blade سيكون chat.blade.php
-})->name('chat')->middleware('auth');
+})->name('chat');
 
 // OTP Web Routes
 Route::get('/verify-email', function () {
