@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Support\Notifier;
 
 class UserController extends Controller
@@ -112,6 +113,38 @@ class UserController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم حذف المستخدم بنجاح',
+        ]);
+    }
+
+    // تغيير كلمة المرور للمستخدم المسجل دخوله
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = Auth::user();
+
+        // التحقق من كلمة المرور الحالية
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'كلمة المرور الحالية غير صحيحة',
+            ], 400);
+        }
+
+        // تحديث كلمة المرور
+        $user->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
+
+        // إلغاء جميع الـ tokens الحالية لإجبار المستخدم على تسجيل الدخول مرة أخرى
+        $user->tokens()->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم تغيير كلمة المرور بنجاح. يرجى تسجيل الدخول مرة أخرى.',
         ]);
     }
 }
