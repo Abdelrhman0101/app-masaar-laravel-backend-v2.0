@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Support\Notifier;
 
 class RegisteredUserController extends Controller
 {
@@ -143,6 +144,25 @@ class RegisteredUserController extends Controller
                     
                 ]);
                 break;
+        }
+
+        // 3.5 إرسال إشعار إلى جميع المدراء بوجود تسجيل مستخدم جديد (ما عدا حسابات الـ admin)
+        try {
+            if ($user->user_type !== 'admin') {
+                $admins = User::where('user_type', 'admin')->get();
+                foreach ($admins as $admin) {
+                    Notifier::send(
+                        $admin,
+                        'user_registered',
+                        'تسجيل مستخدم جديد',
+                        'قام المستخدم ' . $user->name . ' بالتسجيل.',
+                        ['user_id' => (string)$user->id, 'user_type' => $user->user_type],
+                        '/accounts?user_id=' . $user->id
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to send admin registration notification', ['error' => $e->getMessage(), 'new_user_id' => $user->id]);
         }
 
         // 4. إرسال رمز التحقق عبر البريد الإلكتروني (فقط للمستخدمين غير الـ admin)

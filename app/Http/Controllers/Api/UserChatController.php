@@ -68,7 +68,8 @@ class UserChatController extends Controller
                     $notificationTitle,
                     $notificationBody,
                     ['conversation_id' => (string)$conversation->id, 'sender_id' => (string)$fromUser->id],
-                    'app://admin/chats/' . $conversation->user_id // <-- الرابط الآن يشير إلى user_id
+                    // استخدم رابط الويب لفتح محادثة المستخدم على صفحة الشات
+                    '/chat?user_id=' . $conversation->user_id
                 );
             } catch (\Throwable $e) {
                 Log::error('Chat Notification Failed for admin ' . $admin->id . ': ' . $e->getMessage());

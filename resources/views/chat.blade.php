@@ -284,6 +284,16 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initializeRealtime() {
         await fetchConversationsAPI();
 
+        // فتح محادثة محددة من معامل URL إن وجد
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const targetUserId = params.get('user_id');
+            if (targetUserId) {
+                const itemEl = conversationsContainer.querySelector(`.conversation-item[data-id="${targetUserId}"]`);
+                if (itemEl) itemEl.click();
+            }
+        } catch (e) { /* ignore */ }
+
         // الاشتراك في قنوات البث في حال توفر Echo
         if (typeof Echo !== 'undefined' && conversations.length > 0) {
             conversations.forEach(convo => {

@@ -223,6 +223,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (notification.type.includes('appointment')) iconClass = 'bi-calendar2-check-fill';
         if (notification.type.includes('chat')) iconClass = 'bi-chat-dots-fill';
         item.innerHTML = `<div class="notification-icon"><i class="bi ${iconClass}"></i></div><div class="notification-content"><p><strong>${notification.title}</strong><br>${notification.message}</p><span>${timeAgo(notification.created_at)}</span></div>`;
+    
+        // دعم الرابط: إذا توفر notification.link نخزنه على العنصر
+        if (notification.link) {
+            item.dataset.link = notification.link;
+        }
+    
         return item;
     }
     
@@ -277,7 +283,34 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- [6] Event Listeners ---
     list.addEventListener('click', function(e) {
         const item = e.target.closest('.notification-item');
-        if (item && item.classList.contains('unread')) {
+        if (!item) return;
+    
+        // فتح الرابط إن توفر
+        const link = item.dataset.link;
+        if (link) {
+            try {
+                if (link.startsWith('app://')) {
+                    // نحاول تحويله إلى رابط ويب مكافئ إذا كان يشير إلى محادثة الشات
+                    // مثال: app://admin/chats/123 => /chat?user_id=123
+                    const chatMatch = link.match(/^app:\/\/admin\/chats\/(\d+)/);
+                    if (chatMatch) {
+                        const userId = chatMatch[1];
+                        window.location.href = `/chat?user_id=${userId}`;
+                    } else {
+                        // روابط app:// أخرى - نحاول فتحها كما هي (قد تعتمد على بروتوكول مخصص على الجهاز)
+                        window.location.href = link;
+                    }
+                } else if (link.startsWith('/')) {
+                    // رابط نسبي داخل الموقع
+                    window.location.href = link;
+                } else if (/^https?:\/\//i.test(link)) {
+                    // رابط مطلق
+                    window.location.href = link;
+                }
+            } catch (_) { /* ignore navigation errors */ }
+        }
+    
+        if (item.classList.contains('unread')) {
             const notificationId = item.dataset.id;
             item.classList.remove('unread');
             markAsReadAPI(notificationId);
