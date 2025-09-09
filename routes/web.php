@@ -6,11 +6,17 @@ use App\Http\Controllers\Auth\SocialLoginController;
 
 // صفحة تسجيل الدخول
 Route::get('/login', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
     return view('login');
-})->name('login')->middleware('guest');
+})->name('login');
 Route::get('/', function () {
-    return view('login');
-})->name('login')->middleware('guest');
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('login');
+});
 // صفحة الداشبورد
 Route::get('/dashboard', function () {
     return view('dashboard');
