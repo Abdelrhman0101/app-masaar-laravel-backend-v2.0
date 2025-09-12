@@ -68,7 +68,8 @@ class PublicRestaurantController extends Controller
     public function show(User $user)
     {
         // هذه الدالة تبقى كما هي تماماً
-        if ($user->user_type !== 'restaurant' || $user->is_approved !== 1) {
+        // التحقق من نوع المستخدم وحالة الموافقة
+        if ($user->user_type !== 'restaurant' || !$user->is_approved) {
             return response()->json(['status' => false, 'message' => 'Restaurant not found or not approved.'], 404);
         }
 
@@ -77,25 +78,6 @@ class PublicRestaurantController extends Controller
         return response()->json([
             'status' => true,
             'data' => new RestaurantResource($user),
-        ]);
-    }
-
-    /**
-     * !! الدالة الجديدة !!
-     * وظيفتها: جلب قائمة فريدة بكل أسماء أقسام الطعام الموجودة في النظام.
-     * الغرض: استخدامها في تطبيق فلاتر لبناء واجهة الفلاتر (مثل Chips).
-     */
-    public function getMenuSections()
-    {
-        $sections = MenuSection::query()
-            ->select('title')  // اختر عمود 'title' فقط
-            ->distinct()       // جلب القيم الفريدة فقط (لمنع تكرار كلمة "مشويات")
-            ->orderBy('title') // ترتيب النتائج أبجدياً
-            ->pluck('title');  // استخراج القيم من عمود 'title' في مصفوفة بسيطة
-
-        return response()->json([
-            'status' => true,
-            'data' => $sections,
         ]);
     }
 }
